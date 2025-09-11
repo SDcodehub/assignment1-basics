@@ -5,10 +5,9 @@ import os
 import logging
 from heapq import nlargest
 import regex as re
+from utlis.logging_config import get_logger
 
-
-
-
+log = get_logger()
 # GPT 2 tokenizer pattern
 # This regex splits the text into chunks of letters numbers or punctuations
 # Its designed to keep the spaces attached to the words that follow them
@@ -70,30 +69,11 @@ def merge_splits(splits, pair, new_token):
                 i += 1
         new_splits[tuple(new_words_parts)] = count
     return new_splits
-
-
-def _get_logger() -> logging.Logger:
-    logger_instance = logging.getLogger(__name__)
-    if logger_instance.handlers:
-        return logger_instance
-
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-    level = getattr(logging, level_name, logging.INFO)
-
-    handler = logging.StreamHandler()
-    fmt = "%(asctime)s %(levelname)s:%(name)s:%(message)s"
-    datefmt = "%Y-%m-%d %H:%M:%S"  # short date+time
-    handler.setFormatter(logging.Formatter(fmt, datefmt=datefmt))
-
-    logger_instance.addHandler(handler)
-    logger_instance.setLevel(level)
-    logger_instance.propagate = False
-    return logger_instance
-    
+ 
 
 def train_bpe(input_path, vocab_size, special_tokens):
     """Main function for training BPE model"""
-    log = _get_logger()
+
     raw_splits = pretokenise_text(input_path)
     log.info("unique pretokenized byte-sequences: %d", len(raw_splits))
     result = {tuple(word): count for word, count in raw_splits.items()}
@@ -105,7 +85,7 @@ def train_bpe(input_path, vocab_size, special_tokens):
             hex_bytes = " ".join(f"{x:02x}" for x in byte_seq)
             log.debug("split %r [%s] -> %d", byte_seq, hex_bytes, count)
 
-    vocab_map = initialise_vocab(["<|endoftext|>"])
+    vocab_map = initialise_vocab(special_tokens)
     log.info("vocab size: %d", len(vocab_map))
 
     pair_stats = get_stats(result)
