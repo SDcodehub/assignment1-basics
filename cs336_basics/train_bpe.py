@@ -1,26 +1,30 @@
-import regex as re
+"""
+Train a BPE model on a text file
+"""
+import os
 import logging
 from heapq import nlargest
-import os
+import regex as re
+
+
 
 
 # GPT 2 tokenizer pattern
 # This regex splits the text into chunks of letters numbers or punctuactions
-# Its designed to keep the spaces attached to the workds that follow them
+# Its designed to keep the spaces attached to the words that follow them
 split_pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 def pretokenise_text(input_path):
     with open(input_path, "r", encoding="utf-8") as read_file:
         text = read_file.read()
-    
+   
     pre_tokens = re.findall(split_pattern, text)
-
     # we will convert the pre tokens into the counts
     word_count = {}
     for word in pre_tokens:
         word_count[word] = word_count.get(word, 0) + 1
-    
+
     # BPE generally works on the byte sequences to converting the strings into byte sequences
     splits = {word.encode("utf-8"): count for word, count in word_count.items()}
     return splits
@@ -50,6 +54,22 @@ def get_stats(splits):
             # increment the count for the pair
             stats[pair] = stats.get(pair, 0) + count
     return stats
+
+def merge_splits(splits, pair, new_token):
+    """Replaces all the occuraces of pair in the splits with new_token"""
+    new_splits = {}
+    for words_parts, count in splits.items():
+        new_words_parts = []
+        i = 0
+        while i < len(words_parts):
+            if words_parts[i:i+2] == pair:
+                new_words_parts.append(new_token)
+                i += 2
+            else:
+                new_words_parts.append(words_parts[i])
+                i += 1
+        new_splits[tuple(new_words_parts)] = count
+    return new_splits
 
 def train_bpe(input_path, vocab_size, special_tokens):
     pass
@@ -84,8 +104,9 @@ if __name__ == "__main__":
     # with open(temp_path, "w", encoding="utf-8") as f:
     #     f.write(sample_text)
     temp_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-valid.txt"
-    result = pretokenise_text(temp_path)
-    log.info("unique pretokenized byte-sequences: %d", len(result))
+    raw_splits = pretokenise_text(temp_path)
+    log.info("unique pretokenized byte-sequences: %d", len(raw_splits))
+    result = {tuple(word): count for word, count in raw_splits.items()}
 
     # Debug-only: top-K splits
     if log.isEnabledFor(logging.DEBUG):
