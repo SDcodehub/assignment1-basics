@@ -10,7 +10,7 @@ import regex as re
 
 
 # GPT 2 tokenizer pattern
-# This regex splits the text into chunks of letters numbers or punctuactions
+# This regex splits the text into chunks of letters numbers or punctuations
 # Its designed to keep the spaces attached to the words that follow them
 split_pattern = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -43,7 +43,7 @@ def initialise_vocab(special_tokens):
 
 def get_stats(splits):
     """
-    Give n splits pre tokenised, return a dictionary of pairs of byte sequences and their counts
+    Give n splits pre tokenized, return a dictionary of pairs of byte sequences and their counts
     """
     stats = {}
     for word_part, count in splits.items():
@@ -71,10 +71,6 @@ def merge_splits(splits, pair, new_token):
         new_splits[tuple(new_words_parts)] = count
     return new_splits
 
-def train_bpe(input_path, vocab_size, special_tokens):
-    pass
-
-
 
 def _get_logger() -> logging.Logger:
     logger_instance = logging.getLogger(__name__)
@@ -95,16 +91,10 @@ def _get_logger() -> logging.Logger:
     return logger_instance
     
 
-
-
-if __name__ == "__main__":
+def train_bpe(input_path, vocab_size, special_tokens):
+    """Main function for training BPE model"""
     log = _get_logger()
-    # sample_text = "Hello, world! It's a test — with numbers 123 and spaces.  New line?\nYes!"
-    # temp_path = "/tmp/pretokenise_sample.txt"
-    # with open(temp_path, "w", encoding="utf-8") as f:
-    #     f.write(sample_text)
-    temp_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-valid.txt"
-    raw_splits = pretokenise_text(temp_path)
+    raw_splits = pretokenise_text(input_path)
     log.info("unique pretokenized byte-sequences: %d", len(raw_splits))
     result = {tuple(word): count for word, count in raw_splits.items()}
 
@@ -127,3 +117,12 @@ if __name__ == "__main__":
         for (a, b), count in top_pairs:
             log.debug("pair (%d,%d) [%02x %02x] -> %d", a, b, a, b, count)
 
+if __name__ == "__main__":
+        # sample_text = "Hello, world! It's a test — with numbers 123 and spaces.  New line?\nYes!"
+    # temp_path = "/tmp/pretokenise_sample.txt"
+    # with open(temp_path, "w", encoding="utf-8") as f:
+    #     f.write(sample_text)
+    input_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-valid.txt"
+    vocab_size = 500
+    special_tokens = ["<|endoftext|>"]
+    train_bpe(input_path, vocab_size, special_tokens)
