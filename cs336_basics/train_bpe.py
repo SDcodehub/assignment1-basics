@@ -33,14 +33,21 @@ def pretokenise_text(input_path, special_tokens=None):
         text_chunks = re.split(f"({special_pattern})", text)
     else:
         text_chunks = [text]
-    pre_tokens = re.findall(split_pattern, text)
-    # we will convert the pre tokens into the counts
-    word_count = {}
-    for word in pre_tokens:
-        word_count[word] = word_count.get(word, 0) + 1
+
+    # pre tokenize the text chunks seperately
+    word_counts = {}
+    for chunk in text_chunks:
+        # Ignore the special tokens
+        # handles in the vocab seperately
+        if chunk in special_tokens:
+            continue
+
+        # find all pre-tokens in the chunk
+        for word in re.findall(split_pattern, chunk):
+            word_counts[word] = word_counts.get(word, 0) + 1
 
     # BPE generally works on the byte sequences to converting the strings into byte sequences
-    splits = {word.encode("utf-8"): count for word, count in word_count.items()}
+    splits = {word.encode("utf-8"): count for word, count in word_counts.items()}
     return splits
 
 def initialise_vocab(special_tokens):
