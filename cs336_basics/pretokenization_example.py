@@ -1,3 +1,6 @@
+"""
+Example of how to chunk a file for pretokenization
+"""
 import os
 from typing import BinaryIO
 

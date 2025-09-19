@@ -183,8 +183,8 @@ if __name__ == "__main__":
     # temp_path = "/tmp/pretokenise_sample.txt"
     # with open(temp_path, "w", encoding="utf-8") as f:
     #     f.write(sample_text)
-    input_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-valid.txt"
-    vocab_size = 300
+    input_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt"
+    vocab_size = 1000
     special_tokens = ["<|endoftext|>"]
     train_bpe(
         input_path, 
