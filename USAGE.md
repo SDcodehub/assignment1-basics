@@ -31,7 +31,7 @@ wget https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinySto
 You can use [`hyperfine`](https://github.com/sharkdp/hyperfine) to benchmark the runtime of the BPE training script.
 cd assignment1-basics
 ```bash
-hyperfine --warmup 1 --runs 2 --show-output 'uv run -- python -u cs336_basics/train_bpe.py
+hyperfine --warmup 1 --runs 2 --show-output 'uv run -- python -u cs336_basics/train_bpe.py'
 ```
 
 Note the commit id using following command
