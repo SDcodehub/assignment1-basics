@@ -3,7 +3,7 @@ Tokenizer class for tokenizing text
 """
 import regex as re
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterable, Iterator
 from cs336_basics.utlis.logging_config import get_logger
 
 
@@ -37,8 +37,17 @@ class Tokenizer:
                     existing_values.add(token_bytes)
                     next_id += 1
 
+        # reverse mapping of vocab
+        self.encoder_vocab = {b: i for i, b in self.vocab.items()}
+
+        # reverse mapping of merges
+        self.merge_ranks = {pair: r for r, pair in enumerate(self.merges)}
+
+        # build the special token pattern
         if self.special_tokens:
-            special_pattern = "|".join(re.escape(token) for token in self.special_tokens)
+            # Prefer longer overlapping special tokens first
+            sorted_specials = sorted(self.special_tokens, key=len, reverse=True)
+            special_pattern = "|".join(re.escape(token) for token in sorted_specials)
             self.special_token_pattern = re.compile(f"({special_pattern})")
         else:
             self.special_token_pattern = None
@@ -53,38 +62,118 @@ class Tokenizer:
         """
 
         # load the vocabulary
-        log.info(f"loading vocabulary from {vocab_filepath}")
+        log.info("loading vocabulary from %s", vocab_filepath)
 
         # This will load the file into a dictionary like:
         # {"256": [60, 124, 101, 110, 100, 111, 102, 116, 101, 120, 116, 124, 62], ...}
         with open(vocab_filepath, "r", encoding="utf-8") as vocab_file:
             vocab = json.load(vocab_file)
 
-        # Show only the top 5 and bottom 5 items in the vocab for debug logging
-        log.debug(f"top 5 vocab items are{vocab[:5]}")
-        log.debug(f"bottom 5 vocab items are{vocab[-5:]}")
-
         # now lets convert the read file into the format expect in init dict{int: bytes}
         parsed_vocab = {int(token_id): bytes(byte_list) for token_id, byte_list in vocab.items()}
-
-        log.debug(f"top 5 parsed vocab items are{parsed_vocab[:5]}")
-        log.debug(f"bottom 5 parsed vocab items are{parsed_vocab[-5:]}")
+        log.info("Loaded vocabulary size: %d", len(parsed_vocab))
 
         # lets start working on the merges
-        log.info(f"loading merges from {merges_filepath}")
+        log.info("loading merges from %s", merges_filepath)
         with open(merges_filepath, "r", encoding="utf-8") as merges_files:
             merges = [tuple(bytes.fromhex(h) for h in line.split()) for line in merges_files if line.split()]
         
-        log.debug(f"top 5 merges are{merges[:5]}")
-        log.debug(f"bottom 5 merges are{merges[-5:]}")
+        log.debug("top 5 merges are %s", merges[:5])
+        log.debug("bottom 5 merges are %s", merges[-5:])
 
         return cls(parsed_vocab, merges, special_tokens)
+
+    def _get_adjucent_pairs(self, tokens: List[bytes]) -> List[Tuple[bytes, bytes]]:
+        """
+        Get all the adjucent pairs of bytes in the token list
+        """
+        return set(zip(tokens, tokens[1:]))
+
+    def _apply_bpe_words(self, word_bytes: bytes) -> List[bytes]:
+        """
+        Apply bpe to a word
+        """
+        if not word_bytes:
+            return []
+
+        # start with the word as a list of single bytes tokens
+        tokens = list(word_bytes)
+
+        # apply bpe
+        while True:
+            # find all the adjucent pairs of bytes in token list
+            pairs = self._get_adjucent_pairs(tokens)
+            if not pairs:
+                break
+            
+            # Find the best pair to merge. This is the pair that appears in
+            # our merge rules and has the lowest rank (was learned earliest).
+            best_pair = min(pairs, key=lambda pair: self.merge_ranks.get(pair, float("inf")))
+
+            # If the best pair has a rank of infinity, it means none of the
+            # adjacent pairs are in our merge rules. So, we're done.
+            if self.merge_ranks.get(best_pair, float("inf")) == float("inf"):
+                break
+
+            # We found a pair to merge. Let's rebuild the token list.
+            new_tokens = []
+            i = 0
+            while i < len(tokens):
+                if i < len(tokens) - 1 and (tokens[i], tokens[i+1]) == best_pair:
+                    # Merge the best pair
+                    new_tokens.append(tokens[i] + tokens[i+1])
+                    i += 2
+                else:
+                    new_tokens.append(tokens[i])
+                    i += 1
+            tokens = new_tokens
+
+        return tokens
+
+
 
     def encode(self, text: str) -> List[int]:
         """
         Encode a text string into a list of integers
         """
-        pass
+        final_token_ids = []
+
+        # Isolate special tokens
+        if self.special_token_pattern:
+            chunks = re.split(self.special_token_pattern, text)
+        else:
+            chunks = [text]
+
+        # process each chunk
+        for chunk in chunks:
+            if not chunk:
+                continue
+            
+            # handle chunk which is a special token
+            if self.special_tokens and chunk in self.special_tokens:
+                # look up the token id directly
+                token_id = self.encoder_vocab.get(chunk.encode("utf-8"))
+                final_token_ids.append(token_id)
+            else:
+                # handle regular text. Apply full bpe
+                # pre tokenize, chunk into words
+                pre_tokens = re.findall(split_pattern, chunk)
+
+                # merging happens at words level, so no non regular merge across split patter in possible
+                for word in pre_tokens:
+                    # convert the word into bytes
+                    word_bytes = word.encode("utf-8")
+
+                    # apply bpe
+                    merged_tokens = self._apply_bpe_words(word_bytes)
+
+                    # look for ids for the final merged tokens
+                    for token in merged_tokens:
+                        token_id = self.encoder_vocab.get(token)
+                        final_token_ids.append(token_id)
+        
+        return final_token_ids
+
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         """
