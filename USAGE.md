@@ -47,3 +47,40 @@ Dataset used is `TinyStoriesV2-GPT4-train.txt`
 | 00312fb | 2    | 1      | 166.923 s ± 0.600 s   | 166.498 s … 167.347 s     | `uv run -- python -u cs336_basics/train_bpe.py` |
 
 #### TODO Using above setup think of optimising the train_BPE code
+
+### High‑throughput tokenization (chunked streaming)
+
+- **Why not line‑by‑line?**
+  - **I/O overhead:** many tiny reads slow overall throughput
+  - **CPU underutilization:** compute waits on disk between short lines
+
+- **Do this instead:** read fixed‑size chunks (e.g., 1–4 MB) and feed them to `encode_iterable`.
+
+- **Helper: chunked reader**
+
+```python
+def read_in_chunks(file_object, chunk_size: int = 1024 * 1024):
+    """Yield text in fixed-size chunks (default 1 MB)."""
+    while True:
+        data = file_object.read(chunk_size)
+        if not data:
+            break
+        yield data
+```
+
+- **Use with `encode_iterable`:**
+
+```python
+# tokenizer: your initialized Tokenizer
+from cs336_basics.tokonizer import Tokenizer  # if needed
+
+with open("data/TinyStoriesV2-GPT4-train.txt", "r", encoding="utf-8") as fh:
+    chunk_gen = read_in_chunks(fh, chunk_size=4 * 1024 * 1024)  # 4 MB
+    for token_id in tokenizer.encode_iterable(chunk_gen):
+        # process token_id (streaming)
+        ...
+```
+
+- **Tips:**
+  - **Chunk size:** start with 1–4 MB; tune for your disk/CPU.
+  - **Memory‑safe:** streaming keeps peak memory low while saturating compute.
