@@ -181,7 +181,12 @@ class Tokenizer:
         lazily yields token IDs. This is required for memory-eﬀicient tokenization of large 
         files that we cannot directly load into memory.
         """
-        pass
+        # Iterate over each chunk/line from the input iterable
+        for chunk in iterable:
+            # Encode the chunk using the already implemented encode method
+            encoded_ids = self.encode(chunk)
+            # Lazily yield each token ID from the result
+            yield from encoded_ids
 
     def decode(self, ids: List[int]) -> str:
         """
