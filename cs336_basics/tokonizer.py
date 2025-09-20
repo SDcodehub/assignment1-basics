@@ -97,7 +97,7 @@ class Tokenizer:
             return []
 
         # start with the word as a list of single bytes tokens
-        tokens = list(word_bytes)
+        tokens = [bytes([b]) for b in word_bytes]
 
         # apply bpe
         while True:
@@ -187,4 +187,39 @@ class Tokenizer:
         """
         Decode a list of integers into a text string
         """
-        pass
+        # get the byte sequence for each id from the vocabolary
+        byte_sequence = [self.vocab.get(i, b'') for i in ids]
+
+        # join them all into a single object
+        full_byte_sequence = b''.join(byte_sequence)
+
+        # decode the bytes into a string , replacing the errors
+        return full_byte_sequence.decode("utf-8", errors="replace")
+
+
+# At the bottom of your tokonizer.py file
+
+if __name__ == '__main__':
+    # Load your trained tokenizer
+    tokenizer = Tokenizer.from_files(
+        vocab_filepath="bpe_tokenizer/tinystories_vocab.json",
+        merges_filepath="bpe_tokenizer/tinystories_merges.txt",
+        special_tokens=["<|endoftext|>"]
+    )
+
+    # Test sentence with a special token and tricky punctuation
+    test_text = "Hello world! This is a test... <|endoftext|> Let's see how it's tokenized."
+
+    print(f"Original text:\n'{test_text}'")
+
+    # Encode the text
+    encoded_ids = tokenizer.encode(test_text)
+    print(f"\nEncoded IDs ({len(encoded_ids)} tokens):\n{encoded_ids}")
+
+    # Decode the IDs
+    decoded_text = tokenizer.decode(encoded_ids)
+    print(f"\nDecoded text:\n'{decoded_text}'")
+
+    # Check if they match
+    assert test_text == decoded_text
+    print("\n✅ Round-trip test passed!")
