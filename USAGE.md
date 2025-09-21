@@ -27,6 +27,9 @@ wget https://huggingface.co/datasets/roneneldan/TinyStories/resolve/main/TinySto
 ```
 
 
+### Tokenization script
+- `cs336_basics/scripts/tokenize_dataset.py`: tokenizes a text file with the TinyStories BPE and writes a `.npy` of uint16 token ids. See the script header for usage examples (including `uv run`).
+
 ### Benchmark (timing)
 You can use [`hyperfine`](https://github.com/sharkdp/hyperfine) to benchmark the runtime of the BPE training script.
 cd assignment1-basics

@@ -184,11 +184,11 @@ if __name__ == "__main__":
     # with open(temp_path, "w", encoding="utf-8") as f:
     #     f.write(sample_text)
     input_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt"
-    vocab_size = 32000
+    vocab_size = 5000
     special_tokens = ["<|endoftext|>"]
     train_bpe(
         input_path, 
         vocab_size, 
         special_tokens, 
-        save_prefix=os.path.join(output_dir, "tinystories-32k")
+        save_prefix=os.path.join(output_dir, "tinystories-5k")
     )

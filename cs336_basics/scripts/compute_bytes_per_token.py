@@ -70,10 +70,10 @@ def build_arg_parser() -> argparse.ArgumentParser:
         assignment_root, "data", "TinyStoriesV2-GPT4-valid.txt"
     )
     default_ts_vocab = os.path.join(
-        assignment_root, "bpe_tokenizer", "tinystories-32k_vocab.json"
+        assignment_root, "bpe_tokenizer", "tinystories-5k_vocab.json"
     )
     default_ts_merges = os.path.join(
-        assignment_root, "bpe_tokenizer", "tinystories-32k_merges.txt"
+        assignment_root, "bpe_tokenizer", "tinystories-5k_merges.txt"
     )
 
     parser = argparse.ArgumentParser(
