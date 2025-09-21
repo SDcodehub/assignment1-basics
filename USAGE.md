@@ -84,3 +84,34 @@ with open("data/TinyStoriesV2-GPT4-train.txt", "r", encoding="utf-8") as fh:
 - **Tips:**
   - **Chunk size:** start with 1–4 MB; tune for your disk/CPU.
   - **Memory‑safe:** streaming keeps peak memory low while saturating compute.
+
+### Compression ratio (bytes/token)
+
+- **Definition:** bytes/token = total UTF‑8 bytes ÷ total token count, averaged over sampled docs.
+
+- **TinyStories (10K) over 10 docs:**
+```bash
+cd assignment1-basics
+uv run python cs336_basics/compute_bytes_per_token.py | cat
+```
+
+- **Add OpenWebText (32K) paths:**
+```bash
+cd assignment1-basics
+uv run python cs336_basics/compute_bytes_per_token.py \
+  --owt-text /absolute/path/to/openwebtext.txt \
+  --owt-vocab /absolute/path/to/openwebtext-32k_vocab.json \
+  --owt-merges /absolute/path/to/openwebtext-32k_merges.txt | cat
+```
+
+- **Options:**
+  - `--n 10` to change the number of sampled documents
+  - `--seed 42` for deterministic sampling
+
+- **Deliverable (example, 1–2 sentences):**
+  - "TinyStories 10K: X.XXX bytes/token; OpenWebText 32K: Y.YYY bytes/token (10 sampled docs)."
+
+#### Reference results
+
+- TinyStories 10K: 4.058 bytes/token (10 sampled docs, seed 42)
+- TinyStories 32K: 4.072 bytes/token (10 sampled docs, seed 42)
