@@ -48,3 +48,54 @@ gunzip owt_valid.txt.gz
 cd ..
 ```
 
+
+date 5 Oct 2025, folder structure
+cs336_basics/
+  __init__.py
+
+  nn/
+    __init__.py            # expose: Linear, Embedding, functional, etc.
+    functional.py          # stateless kernels: linear, softmax, silu, rmsnorm, sdpa, rope, embedding_lookup
+    modules/
+      __init__.py
+      linear.py            # class Linear
+      embedding.py
+      attention.py
+      feedforward.py       # SwiGLU/FFN
+      normalization.py     # RMSNorm
+
+  models/
+    __init__.py
+    transformer_block.py   # pre-norm block wiring (MHA+RoPE, FFN, residuals)
+    transformer_lm.py      # embeddings, blocks, final norm/head
+
+  tokenizer/
+    __init__.py            # expose: Tokenizer, train_bpe
+    bpe/
+      __init__.py
+      core.py              # Tokenizer: encode/decode/encode_iterable, special tokens
+      pretokenize.py       # GPT-2 regex + bytes mapping
+      training.py          # train_bpe algorithm (pure functions)
+      serialization.py     # load/save vocab & merges
+      types.py             # small dataclasses / type aliases
+    cli/
+      __init__.py
+      tokenize_dataset.py
+      compute_bytes_per_token.py
+
+  optim/
+    __init__.py
+    adamw.py
+    schedulers.py          # cosine schedule with warmup
+
+  data/
+    __init__.py
+    batching.py            # get_batch
+
+  training/
+    __init__.py
+    checkpointing.py       # save_checkpoint / load_checkpoint
+
+  utils/
+    __init__.py
+    logging_config.py
