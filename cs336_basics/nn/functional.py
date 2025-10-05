@@ -2,9 +2,21 @@
 stateless kernels: linear, softmax, silu, rmsnorm, sdpa, rope, embedding_lookup
 """
 
+import torch
 
-# cs336_basics/nn/functional.py
-def linear(x, weight, bias=None):
-    # x: [..., d_in], weight: [d_out, d_in], bias: [d_out] or None
-    y = x.matmul(weight.T)
-    return y if bias is None else y + bias
+def linear(input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    """
+    Applies linear transformation to incoming data.
+    Stateless function.
+
+    Args:
+        input(torch.Tensor): input tensor of shape (...., in_features)
+        weight(torch.Tensor): weight matrix of shape (out_features, in_features)
+
+    Returns:
+    torch.Tensor: output tensor of shape (..., out_features)
+    """
+    # using einsum as its explicit and handles broadcasting over batch dimensions
+    # This is the core computation of the linear layer
+    return torch.einsum("...i,oi->...o", input, weight)
+    
