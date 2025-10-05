@@ -20,3 +20,18 @@ def linear(input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     # This is the core computation of the linear layer
     return torch.einsum("...i,oi->...o", input, weight)
     
+
+def embedding(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+    """
+    Performs a lookup in an embedding matrix
+    this is stateless function
+
+    Args:
+        input_ids(torch.Tensor): a tensor of integer token IDs of shape (...)
+        weight (torch.Tensor): the embedding matrix of shape (vocab_size, embedding_dim)
+
+    Returns:
+        torch.Tensor: a looked up embedding vectors of shap (..., embedding_dim)
+    """
+    # Pytorchs indexing is higly optimised for this operation
+    return weight[input_ids]
