@@ -35,3 +35,35 @@ def embedding(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     """
     # Pytorchs indexing is higly optimised for this operation
     return weight[input_ids]
+
+
+def rms_norm(input: torch.Tensor, weight: torch.Tensor, eps: float = 1e-5) -> torch.Tensor:
+    """
+    applies rms layer normalisation
+    stateless function
+    
+    Args:
+        input (torch.Tensor): input tensor of shape (..., d_model)
+        weight (torch.Tensor): learnable gain parameter (gamma) of shape (d_model, )
+        eps (float): a small value added for numerical stability
+
+    Returns:
+        torch.Tensor: normalised tensor of the same shape as input
+    """
+    # store original dtype to cast back at the end
+    input_dtype = input.dtype
+
+    # upcast to float32 for stable computation of squares
+    x = input.to(torch.float32)
+
+    # calculate the mean of the squares of the input along the last dimension
+    variance = x.pow(2).mean(dim=-1, keepdim=True)
+
+    # calculate the reciprocal fo the square root
+    rsqrt = torch.rsqrt(variance + eps)
+
+    # normalize the input and apply the learnable gain (weight)
+    normalized_x = x * rsqrt
+
+    # apply the gain and cast back to the original dtype
+    return (weight * normalized_x ).to(input_dtype)
