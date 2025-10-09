@@ -3,8 +3,9 @@ stateless kernels: linear, softmax, silu, rmsnorm, sdpa, rope, embedding_lookup
 """
 
 import torch
+from einops import einsum
 
-def linear(input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
+def linear(input_tensor: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     """
     Applies linear transformation to incoming data.
     Stateless function.
@@ -16,9 +17,8 @@ def linear(input: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     Returns:
     torch.Tensor: output tensor of shape (..., out_features)
     """
-    # using einsum as its explicit and handles broadcasting over batch dimensions
-    # This is the core computation of the linear layer
-    return torch.einsum("...i,oi->...o", input, weight)
+    # explicit einsum notation; supports arbitrary leading/batch dims
+    return einsum(input_tensor, weight, "... in_features, out_features in_features -> ... out_features")
     
 
 def embedding(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
@@ -37,7 +37,7 @@ def embedding(input_ids: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
     return weight[input_ids]
 
 
-def rms_norm(input: torch.Tensor, weight: torch.Tensor, eps: float = 1e-5) -> torch.Tensor:
+def rms_norm(input_tensor: torch.Tensor, weight: torch.Tensor, eps: float = 1e-5) -> torch.Tensor:
     """
     applies rms layer normalisation
     stateless function
@@ -51,10 +51,10 @@ def rms_norm(input: torch.Tensor, weight: torch.Tensor, eps: float = 1e-5) -> to
         torch.Tensor: normalised tensor of the same shape as input
     """
     # store original dtype to cast back at the end
-    input_dtype = input.dtype
+    input_dtype = input_tensor.dtype
 
     # upcast to float32 for stable computation of squares
-    x = input.to(torch.float32)
+    x = input_tensor.to(torch.float32)
 
     # calculate the mean of the squares of the input along the last dimension
     variance = x.pow(2).mean(dim=-1, keepdim=True)
@@ -67,3 +67,50 @@ def rms_norm(input: torch.Tensor, weight: torch.Tensor, eps: float = 1e-5) -> to
 
     # apply the gain and cast back to the original dtype
     return (weight * normalized_x ).to(input_dtype)
+
+
+def silu(input_tensor: torch.Tensor) -> torch.Tensor:
+    """
+    applies the sigmoid weighted linear unit activation function
+    also known as swish, x * sigmoid(x)
+
+    Args:
+        input (torch.Tensor): input tensor
+
+    Returns:
+        torch.Tensor: output tensor, of same as input
+    """
+    # addignment allows using torch.sigmoid for numerical stability
+    return input_tensor * torch.sigmoid(input_tensor)
+
+def swiglu_ffn(
+    input_tensor: torch.Tensor,
+    w1: torch.Tensor,
+    w2: torch.Tensor,
+    w3: torch.Tensor,
+) -> torch.Tensor:
+    """
+    implementation of swiglu ffn 
+    stateless function
+
+    Args:
+        input (torch.Tensor): input tensor of shape (...,d_model)
+        w1 (torch.Tensor): weight matric for the first projection, shape (d_ff, d_model)
+        w2 (torch.Tensor): weight matric for the output projection, shape (d_model, d_ff)
+        w3 (torch.Tensor): weight matric for the gate projection, shape (d_ff, d_model)
+
+    Returns:
+        torch.Tensor: output tensor of shape (..., d_model)
+    """
+    # project up using w1, w3
+    # einsum: "... d_model, d_ff d_model -> ... d_ff"
+    x1 = linear(input_tensor, w1)
+    # einsum: "... d_model, d_ff d_model -> ... d_ff"
+    x3 = linear(input_tensor, w3)
+
+    # apply silu activation and the gating mechanis (elementmise multiplication)
+    gated_x = silu(x1) * x3
+
+    # project back down using w2
+    # einsum: "... d_ff, d_model d_ff -> ... d_model"
+    return linear(gated_x, w2)
