@@ -114,3 +114,29 @@ def swiglu_ffn(
     # project back down using w2
     # einsum: "... d_ff, d_model d_ff -> ... d_model"
     return linear(gated_x, w2)
+
+
+def softmax(input_tensor: torch.Tensor, dim: int) -> torch.Tensor:
+    """
+    applies numerically stable softmax function
+    this is a stateless function
+
+    Args: 
+        input (torch.Tensor): input tensor of logits of shape
+        dim (int): dimension along which softmax will be applied
+
+    Returns:
+        torch.Tensor: Tensor of probabilities, same shape as input.
+    """
+    # subtract the max for numerical stability
+    # we use keepdim=true to ensure the result is broadccastable
+    max_vals, _ = torch.max(input_tensor, dim=dim, keepdim=True)
+    shifted_logits = input_tensor - max_vals
+
+    # exponentiate
+    exps = torch.exp(shifted_logits)
+
+    # sum the exponents and divide
+    sum_exps = torch.sum(exps, dim=dim, keepdim=True)
+    
+    return exps / sum_exps
