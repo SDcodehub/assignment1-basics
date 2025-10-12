@@ -117,6 +117,50 @@ def swiglu_ffn(
     return linear(gated_x, w2)
 
 
+def rope(
+    input_tensor: torch.Tensor,
+    cos: torch.Tensor,
+    sin: torch.Tensor,
+) -> torch.Tensor:
+    """
+    applies rotary position embedding RoPE to the input tensor
+    this is a stateless function
+
+    Args:
+        input (torch.Tensor): input tensor of shape (..., seq_len, d_k)
+        cos (torch.Tensor): Pre-computed cosine values of shape (..., seq_len, d_k )
+        sin (torch.Tensor): Pre-computed sine values of shape (..., seq_len, d_k)
+
+    Returns:
+        torch.Tensor: Tensor with RoPE applied, of the same shape as input
+    """
+    # reshape input to view the last dimension as pairs of features
+    # (..., seq_len, d_k) -> (..., seq_len, d_k/2, 2)
+    x_pairs = input_tensor.unflatten(-1, (-1,2))
+
+    # get the two components of each pair
+    x1 = x_pairs[..., 0]
+    x2 = x_pairs[..., 1]
+
+    # Reshape sin and cos to match the paired shape
+    cos = cos.unflatten(-1, (-1, 2))[..., 0]
+    sin = sin.unflatten(-1, (-1, 2))[..., 0]
+
+    # apply the 2d rotation matrix formula:
+    # y1 = x1*cos(theta) - x2*sin(theta)
+    # y2 = x1*sin(theta) + x2*cos(theta)
+    y1 = x1 * cos - x2 * sin
+    y2 = x1 * sin + x2 * cos
+
+    # stack the roatated pairs back together
+    # (..., seq_len, d_k/2), (..., seq_len, d_k/2) -> (..., seq_len, d_k/2, 2)
+    y_pairs = torch.stack((y1, y2), dim=-1)
+
+    # flatten the last two dimensions to restore the original shape
+    # (..., seq_len, d_k/2, 2) -> (..., seq_len, d_k)
+    return y_pairs.flatten(-2)
+
+
 def softmax(input_tensor: torch.Tensor, dim: int) -> torch.Tensor:
     """
     applies numerically stable softmax function

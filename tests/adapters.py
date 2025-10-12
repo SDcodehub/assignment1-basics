@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN
+from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding
 from cs336_basics.nn import functional as F
 
 
@@ -211,7 +211,8 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    rope_module = RotaryPositionEmbedding(theta, d_k, max_seq_len)
+    return rope_module.forward(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
