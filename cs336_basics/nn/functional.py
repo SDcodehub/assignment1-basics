@@ -3,6 +3,7 @@ stateless kernels: linear, softmax, silu, rmsnorm, sdpa, rope, embedding_lookup
 """
 
 import torch
+import math
 from einops import einsum
 
 def linear(input_tensor: torch.Tensor, weight: torch.Tensor) -> torch.Tensor:
@@ -140,3 +141,54 @@ def softmax(input_tensor: torch.Tensor, dim: int) -> torch.Tensor:
     sum_exps = torch.sum(exps, dim=dim, keepdim=True)
     
     return exps / sum_exps
+
+
+def scaled_dot_product_attention(
+    query: torch.Tensor,
+    key:torch.Tensor,
+    value: torch.Tensor,
+    mask: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """
+    computes scaled dot product attenstion as a stateless function.
+    formula: softmax( (query @ key.T) / sqrt(d_key) ) @ value
+
+    Args:
+        query (torch.Tensor): query tensor fo shape (..., seq_len, d_k)
+        key (torch.Tensor): key tensor of shape (..., seq_len, d_k)
+        value (torch.Tensor): value tensor of shape (..., seq_len, d_v)
+        mask (torch.Tensor, optional): boolean mask of shape (..., seq_len_q, seq_len_k)
+                                        if a value is flase, the corresponding attention 
+                                        score is set to -inf. defaults to none
+        Returns:
+            torch.Tensor: the output of the attention mechanism, shape (..., seq_len, d_v)
+    """
+    # d_k is the dimension fo the key/query vectors
+    d_k = key.shape[-1]
+
+    # compute raw scores with matrix multiplication (Q @ K.T)
+    scores = torch.einsum("...qd, ...kd-> ...qk", query, key)
+
+    # scale the scores
+    scaled_scores = scores / math.sqrt(d_k)
+
+    # apply mask if provided
+    if mask is not None:
+        # we need to ensure the mask can be broadcasted to the scores shape
+        # this is usually handled by how the mask is constructed, but a view can make is robust
+        # for a mask of shape (T,T ) we might need to add batch/head dimensions
+        while mask.dim() < scaled_scores.dim():
+            mask = mask.unsqueeze(0)
+
+        # set scores for a very large negative number where the mask is false
+        scaled_scores = scaled_scores.masked_fill(mask == False, -torch.finfo(scaled_scores.dtype).max)
+
+    # compute the attention weights using softmax
+    # the softmax is applied on the last dimension (the keys)
+    attention_weights = softmax(scaled_scores, dim=-1)
+
+    # compute the weighted sum of values
+    return torch.einsum("...qk, ...kd-> ...qd", attention_weights, value)
+    
+    
+
