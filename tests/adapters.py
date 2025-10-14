@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding
+from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention
 from cs336_basics.nn import functional as F
 
 
@@ -117,7 +117,7 @@ def run_scaled_dot_product_attention(
     """
     return F.scaled_dot_product_attention(Q, K, V, mask)
 
-
+# this test case is without rope , ignoreing fro now, working with rope test case
 def run_multihead_self_attention(
     d_model: int,
     num_heads: int,
@@ -149,7 +149,12 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    multihead_attention_module = MultiHeadAttention(d_model, num_heads, max_seq_len)
+    multihead_attention_module.q_proj.W.data = q_proj_weight
+    multihead_attention_module.k_proj.W.data = k_proj_weight
+    multihead_attention_module.v_proj.W.data = v_proj_weight
+    multihead_attention_module.out_proj.W.data = o_proj_weight
+    return multihead_attention_module.forward(in_features, token_positions)
 
 
 def run_multihead_self_attention_with_rope(
@@ -189,7 +194,12 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    multihead_attention_module = MultiHeadAttention(d_model, num_heads, max_seq_len)
+    multihead_attention_module.q_proj.W.data = q_proj_weight
+    multihead_attention_module.k_proj.W.data = k_proj_weight
+    multihead_attention_module.v_proj.W.data = v_proj_weight
+    multihead_attention_module.out_proj.W.data = o_proj_weight
+    return multihead_attention_module.forward(in_features, token_positions)
 
 
 def run_rope(

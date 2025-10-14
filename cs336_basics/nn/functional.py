@@ -109,7 +109,7 @@ def swiglu_ffn(
     # einsum: "... d_model, d_ff d_model -> ... d_ff"
     x3 = linear(input_tensor, w3)
 
-    # apply silu activation and the gating mechanis (elementmise multiplication)
+    # apply silu activation and the gating mechanism (elementwise multiplication)
     gated_x = silu(x1) * x3
 
     # project back down using w2
