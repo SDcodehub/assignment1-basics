@@ -35,5 +35,10 @@ class Embedding(nn.Module):
         """
         return F.embedding(token_ids, self.weight)
 
+    # Expose a compatibility alias so callers can use either `.W` or `.weight`
+    @property
+    def weight(self):
+        return self.W
+
     def extra_repr(self) -> str:
         return f"{self.num_embeddings}, {self.embedding_dim}"

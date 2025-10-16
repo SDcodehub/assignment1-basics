@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer
+from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer, TransformerLM
 from cs336_basics.nn import functional as F
 
 
@@ -393,7 +393,21 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    transformer_lm_module = TransformerLM(vocab_size, context_length, d_model, num_layers, num_heads, d_ff, rope_theta)
+    transformer_lm_module.token_embedding.weight.data = weights['token_embeddings.weight']
+    for i in range(num_layers):
+        transformer_lm_module.blocks[i].attn.q_proj.W.data = weights[f'layers.{i}.attn.q_proj.weight']
+        transformer_lm_module.blocks[i].attn.k_proj.W.data = weights[f'layers.{i}.attn.k_proj.weight']
+        transformer_lm_module.blocks[i].attn.v_proj.W.data = weights[f'layers.{i}.attn.v_proj.weight']
+        transformer_lm_module.blocks[i].attn.out_proj.W.data = weights[f'layers.{i}.attn.output_proj.weight']
+        transformer_lm_module.blocks[i].norm1.weight.data = weights[f'layers.{i}.ln1.weight']
+        transformer_lm_module.blocks[i].ffn.w1.W.data = weights[f'layers.{i}.ffn.w1.weight']
+        transformer_lm_module.blocks[i].ffn.w2.W.data = weights[f'layers.{i}.ffn.w2.weight']
+        transformer_lm_module.blocks[i].ffn.w3.W.data = weights[f'layers.{i}.ffn.w3.weight']
+        transformer_lm_module.blocks[i].norm2.weight.data = weights[f'layers.{i}.ln2.weight']
+    transformer_lm_module.final_norm.weight.data = weights['ln_final.weight']
+    transformer_lm_module.lm_head.W.data = weights['lm_head.weight']
+    return transformer_lm_module.forward(in_indices)    
 
 
 def run_rmsnorm(
