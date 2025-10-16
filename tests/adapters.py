@@ -10,7 +10,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import Tokenizer, train_bpe
-from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention
+from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer
 from cs336_basics.nn import functional as F
 
 
@@ -149,12 +149,15 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
+    # derive max_seq_len from input features
+    max_seq_len = in_features.shape[-2]
     multihead_attention_module = MultiHeadAttention(d_model, num_heads, max_seq_len)
     multihead_attention_module.q_proj.W.data = q_proj_weight
     multihead_attention_module.k_proj.W.data = k_proj_weight
     multihead_attention_module.v_proj.W.data = v_proj_weight
     multihead_attention_module.out_proj.W.data = o_proj_weight
-    return multihead_attention_module.forward(in_features, token_positions)
+    # no RoPE path (token_positions is not used)
+    return multihead_attention_module.forward(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -295,7 +298,20 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    transformer_block_module = Transformer(d_model, num_heads, d_ff, max_seq_len, theta)
+    transformer_block_module.attn.q_proj.W.data = weights['attn.q_proj.weight']
+    transformer_block_module.attn.k_proj.W.data = weights['attn.k_proj.weight']
+    transformer_block_module.attn.v_proj.W.data = weights['attn.v_proj.weight']
+    transformer_block_module.attn.out_proj.W.data = weights['attn.output_proj.weight']
+    transformer_block_module.norm1.weight.data = weights['ln1.weight']
+    transformer_block_module.ffn.w1.W.data = weights['ffn.w1.weight']
+    transformer_block_module.ffn.w2.W.data = weights['ffn.w2.weight']
+    transformer_block_module.ffn.w3.W.data = weights['ffn.w3.weight']
+    transformer_block_module.norm2.weight.data = weights['ln2.weight']
+    # Construct default token positions if not provided by the caller: shape (batch, seq)
+    batch_size, seq_len, _ = in_features.shape
+    token_positions = torch.arange(seq_len).unsqueeze(0).expand(batch_size, seq_len)
+    return transformer_block_module.forward(in_features, token_positions)
 
 
 def run_transformer_lm(

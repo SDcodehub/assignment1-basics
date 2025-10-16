@@ -1,4 +1,3 @@
-from sympy.geometry.entity import rotate
 import torch
 import torch.nn as nn
 
@@ -57,9 +56,10 @@ class MultiHeadAttention(nn.Module):
         k = k.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1,2)
         v = v.view(batch_size, seq_len, self.num_heads, self.head_dim).transpose(1,2)
 
-        # apply RoPE to Q and K
-        q = self.rope(q, token_positions)
-        k = self.rope(k, token_positions)
+        # optionally apply RoPE to Q and K
+        if token_positions is not None:
+            q = self.rope(q, token_positions)
+            k = self.rope(k, token_positions)
 
         # apply scaled dot-product attention with causal mask
         # the causal mask is (T, T), we need to slice it for the current seq_len

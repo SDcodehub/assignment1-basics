@@ -4,6 +4,7 @@ from cs336_basics.nn.modules.rmsnorm import RMSNorm
 from cs336_basics.nn.modules.ffn import SwiGLUFFN
 from cs336_basics.nn.modules.rope import RotaryPositionEmbedding
 from cs336_basics.nn.modules.attention import MultiHeadAttention
+from cs336_basics.nn.modules.transformer import Transformer
 # You'll add other modules here later, like Embedding, RMSNorm, etc.
 
 __all__ = [
