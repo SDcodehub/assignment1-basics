@@ -235,4 +235,95 @@ def scaled_dot_product_attention(
     return torch.einsum("...qk, ...kd-> ...qd", attention_weights, value)
     
     
+def cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    """
+    computes the cross-entropy loss in a numerically stable way.
+    This is a stateless function.
+
+    Args:
+        logits (torch.Tensor): the raw logits from the model, of shape (..., vocab_size)
+        targets (torch.Tensor): the target token IDs, of shape (...)
+    Returns:
+        torch.Tensor: A single scalar tensor representing the average cross-entropy loss.
+    """
+    # 1. find the max logit for stability
+    max_logits, _ = torch.max(logits, dim=-1, keepdim=True)
+
+    # 2. Substract max logit before exponentiating
+    stable_logits = logits - max_logits
+
+    # 3. compute the log sum exp term
+    # log(sum(exp(o_i -c))) + c
+    log_sum_exp = torch.log(torch.sum(torch.exp(stable_logits), dim=-1)) + max_logits.squeeze(-1)
+
+    # 4. get the logit score for the correct target token
+    # we need to gather the logits corresponding to the target indices
+    # targets.unsqueeze(-1) adds a dim for gather: (...) -> (..., 1)
+    # .squeeze(-1) removes it: (..., 1) -> (...)
+    # example
+    #     import torch
+
+    # # logits: (batch=2, seq=2, vocab=3)
+    # logits = torch.tensor([
+    #     [[1.0, 2.0, 3.0],
+    #     [4.0, 5.0, 6.0]],
+    #     [[7.0, 8.0, 9.0],
+    #     [10.0,11.0,12.0]],
+    # ])
+
+    # # targets: (batch=2, seq=2)
+    # targets = torch.tensor([
+    #     [2, 0],
+    #     [1, 2],
+    # ])
+
+    # print("logits.shape:", logits.shape)    # (2, 2, 3)
+    # print("targets.shape:", targets.shape)  # (2, 2)
+
+    # idx = targets.unsqueeze(-1)
+    # print("\n1) targets.unsqueeze(-1):")
+    # print("   shape:", idx.shape)           # (2, 2, 1)
+    # print(idx)
+
+    # gathered = logits.gather(-1, idx)
+    # print("\n2) logits.gather(-1, idx):")
+    # print("   shape:", gathered.shape)      # (2, 2, 1)
+    # print(gathered)
+
+    # target_logits = gathered.squeeze(-1)
+    # print("\n3) ... .squeeze(-1):")
+    # print("   shape:", target_logits.shape) # (2, 2)
+    # print(target_logits)
+
+    # logits.shape: torch.Size([2, 2, 3])
+    # targets.shape: torch.Size([2, 2])
+
+    # 1) targets.unsqueeze(-1):
+    # shape: torch.Size([2, 2, 1])
+    # tensor([[[2],
+    #         [0]],
+
+    #         [[1],
+    #         [2]]])
+
+    # 2) logits.gather(-1, idx):
+    # shape: torch.Size([2, 2, 1])
+    # tensor([[[ 3.],
+    #         [ 4.]],
+
+    #         [[ 8.],
+    #         [12.]]])
+
+    # 3) ... .squeeze(-1):
+    # shape: torch.Size([2, 2])
+    # tensor([[ 3.,  4.],
+    #         [ 8., 12.]])
+    target_logits = logits.gather(dim=-1, index=targets.unsqueeze(-1)).squeeze(-1)
+
+    # 5. Compute the loss for each token
+    # l_i = log_sum_exp(o_i) - o_i(x_{i+1})
+    token_loss = log_sum_exp - target_logits
+
+    # 6. return the average loss over the entire batch 
+    return token_loss.mean()
 
