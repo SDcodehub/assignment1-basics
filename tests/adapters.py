@@ -12,6 +12,7 @@ from torch import Tensor
 from cs336_basics.tokenizer import Tokenizer, train_bpe
 from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer, TransformerLM
 from cs336_basics.nn import functional as F
+from cs336_basics.nn.optim import AdamW
 
 
 def run_linear(
@@ -521,7 +522,7 @@ def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
