@@ -12,7 +12,7 @@ from torch import Tensor
 from cs336_basics.tokenizer import Tokenizer, train_bpe
 from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer, TransformerLM
 from cs336_basics.nn import functional as F
-from cs336_basics.nn.optim import AdamW
+from cs336_basics.nn.optim import AdamW, get_lr_cosine_schedule
 
 
 def run_linear(
@@ -550,7 +550,7 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    return get_lr_cosine_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
 
 
 def run_save_checkpoint(
