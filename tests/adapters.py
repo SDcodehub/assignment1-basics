@@ -12,7 +12,7 @@ from torch import Tensor
 from cs336_basics.tokenizer import Tokenizer, train_bpe
 from cs336_basics.nn import Linear, Embedding, RMSNorm, SwiGLUFFN, RotaryPositionEmbedding, MultiHeadAttention, Transformer, TransformerLM
 from cs336_basics.nn import functional as F
-from cs336_basics.nn.optim import AdamW, get_lr_cosine_schedule
+from cs336_basics.nn.optim import AdamW, get_lr_cosine_schedule, gradient_clipping
 
 
 def run_linear(
@@ -515,7 +515,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    return gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Any:
