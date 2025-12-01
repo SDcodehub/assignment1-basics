@@ -7,7 +7,7 @@ import json
 from binascii import b2a_hex
 from heapq import nlargest
 import regex as re
-from cs336_basics.utlis.logging_config import get_logger
+from cs336_basics.utils.logging_config import get_logger
 
 log = get_logger()
 # GPT 2 tokenizer pattern
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     # temp_path = "/tmp/pretokenise_sample.txt"
     # with open(temp_path, "w", encoding="utf-8") as f:
     #     f.write(sample_text)
-    input_path = "/Users/sagdesai/Desktop/work/building-transformer-lm/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt"
+    input_path = "./data/TinyStoriesV2-GPT4-train.txt"
     vocab_size = 5000
     special_tokens = ["<|endoftext|>"]
     train_bpe(
