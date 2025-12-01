@@ -1,12 +1,19 @@
-# CS336 Spring 2025 Assignment 1: Basics
-
-For a full description of the assignment, see the assignment handout at
-[cs336_spring2025_assignment1_basics.pdf](./cs336_spring2025_assignment1_basics.pdf)
-
-If you see any issues with the assignment handout or code, please feel free to
-raise a GitHub issue or open a pull request with a fix.
+# LLM training
 
 ## Setup
+
+### Quickstart (generic)
+
+```sh
+# Ensure uv is installed (https://github.com/astral-sh/uv)
+uv --version
+
+# Run any script with the managed environment
+uv run python -V
+
+# Run tests
+uv run pytest
+```
 
 ### Environment
 We manage our environments with `uv` to ensure reproducibility, portability, and ease of use.
@@ -30,7 +37,15 @@ Initially, all tests should fail with `NotImplementedError`s.
 To connect your implementation to the tests, complete the
 functions in [./tests/adapters.py](./tests/adapters.py).
 
-### Download data
+### General usage
+- Use `uv run` to execute any Python entry point in the project. Examples:
+  - Run a module or script:
+    ```sh
+    uv run python -u path/to/script.py
+    ```
+  - Install or pin additional dependencies (see uv docs) and re-run `uv run ...`.
+
+## Download data
 Download the TinyStories data and a subsample of OpenWebText
 
 ``` sh
@@ -48,54 +63,20 @@ gunzip owt_valid.txt.gz
 cd ..
 ```
 
+## Train the BPE first
+```
+uv run ./cs336_basics/tokenizer/bpe/training.py
+```
 
-date 5 Oct 2025, folder structure
-cs336_basics/
-  __init__.py
 
-  nn/
-    __init__.py            # expose: Linear, Embedding, functional, etc.
-    functional.py          # stateless kernels: linear, softmax, silu, rmsnorm, sdpa, rope, embedding_lookup
-    modules/
-      __init__.py
-      linear.py            # class Linear
-      embedding.py
-      attention.py
-      feedforward.py       # SwiGLU/FFN
-      normalization.py     # RMSNorm
-
-  models/
-    __init__.py
-    transformer_block.py   # pre-norm block wiring (MHA+RoPE, FFN, residuals)
-    transformer_lm.py      # embeddings, blocks, final norm/head
-
-  tokenizer/
-    __init__.py            # expose: Tokenizer, train_bpe
-    bpe/
-      __init__.py
-      core.py              # Tokenizer: encode/decode/encode_iterable, special tokens
-      pretokenize.py       # GPT-2 regex + bytes mapping
-      training.py          # train_bpe algorithm (pure functions)
-      serialization.py     # load/save vocab & merges
-      types.py             # small dataclasses / type aliases
-    cli/
-      __init__.py
-      tokenize_dataset.py
-      compute_bytes_per_token.py
-
-  optim/
-    __init__.py
-    adamw.py
-    schedulers.py          # cosine schedule with warmup
-
-  data/
-    __init__.py
-    batching.py            # get_batch
-
-  training/
-    __init__.py
-    checkpointing.py       # save_checkpoint / load_checkpoint
-
-  utils/
-    __init__.py
-    logging_config.py
+## using trained BPE tokenise the dataset
+```
+LOG_LEVEL=INFO 
+```
+```
+uv run python ./cs336_basics/tokenizer/cli/tokenize_dataset.py \
+      --input ./data/TinyStoriesV2-GPT4-train.txt \
+      --vocab ./bpe_tokenizer/TinyStoriesV2-GPT4-train-10k_vocab.json \
+      --merges ./bpe_tokenizer/TinyStoriesV2-GPT4-train-10k_merges.txt \
+      --output ./data/TinyStoriesV2-GPT4-train-GPT4-valid_ids_10k.npy
+```
