@@ -1,4 +1,9 @@
 import importlib.metadata
+from .generation import generate
+
+__all__ = [
+    "generate",
+]
 
 try:
     __version__ = importlib.metadata.version("cs336_basics")

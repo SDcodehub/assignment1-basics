@@ -162,6 +162,7 @@ cython_debug/
 .ruff_cache/
 *.zip
 data_files/
+runs/
 
 bpe_tokenizer/
 

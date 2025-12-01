@@ -12,6 +12,8 @@ from cs336_basics.nn.modules import TransformerLM
 from cs336_basics.nn.optim import AdamW, get_lr_cosine_schedule, gradient_clipping
 from cs336_basics.data_load import get_batch
 from cs336_basics.utils import save_checkpoint, load_checkpoint
+from cs336_basics.utils.logging_config import get_logger
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train a Transformer LM")
@@ -45,12 +47,45 @@ def parse_args():
     parser.add_argument("--warmup_iters", type=int, default=100)
     
     # Misc
-    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--wandb", action="store_true", help="Log to Weights & Biases")
     parser.add_argument("--wandb_project", type=str, default="cs336-assignment1")
     parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
 
     return parser.parse_args()
+
+
+def _resolve_device(requested: str) -> str:
+    """
+    Resolve the requested device with fallback order:
+    CUDA -> MPS -> CPU.
+    """
+    req = (requested or "").lower()
+    # Auto mode: always prefer cuda, then mps, then cpu
+    if req in ("", "auto"):
+        if torch.cuda.is_available():
+            return "cuda"
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
+
+    # Explicit CUDA (e.g., 'cuda' or 'cuda:0')
+    if req.startswith("cuda"):
+        if torch.cuda.is_available():
+            return req
+        # fallback order
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
+
+    # Explicit MPS
+    if req == "mps":
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
+
+    # Explicit CPU or unknown strings: return as-is (safe default)
+    return req
 
 
 @torch.no_grad()
@@ -71,16 +106,24 @@ def estimate_loss(model, data, batch_size, context_length, device, eval_iters):
     return losses.mean()
 
 
+logger = get_logger()
+
 def main():
     args = parse_args()
     
     # 1. Setup Device
-    device = args.device
-    print(f"Using device: {device}")
+    device = _resolve_device(args.device)
+    logger.info(f"Using device: {device}")
 
-    # 2. Setup Logging
+    # 2. Setup W&B (The visual tracker)
     if args.wandb:
-        wandb.init(project=args.wandb_project, config=vars(args))
+        wandb.init(
+            project=args.wandb_project, 
+            name=f"run_{int(time.time())}", # Unique name
+            config=vars(args) # Save all hyperparameters 
+        )
+    
+    logger.info(f"Starting training with config: {vars(args)}")
     
     os.makedirs(args.out_dir, exist_ok=True)
 
@@ -89,8 +132,8 @@ def main():
     train_data = np.load(args.train_data, mmap_mode='r').astype(np.int64)
     val_data = np.load(args.val_data, mmap_mode='r').astype(np.int64)
     
-    print(f"Loaded training data: {len(train_data)} tokens")
-    print(f"Loaded validation data: {len(val_data)} tokens")
+    logger.info(f"Loaded training data: {len(train_data)} tokens")
+    logger.info(f"Loaded validation data: {len(val_data)} tokens")
 
     # 4. Initialize Model
     model = TransformerLM(
@@ -104,7 +147,7 @@ def main():
     )
     model.to(device)
 
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters())/1e6:.2f}M")
+    logger.info(f"Model parameters: {sum(p.numel() for p in model.parameters())/1e6:.2f}M")
 
     # 5. Initialize Optimizer
     optimizer = AdamW(
@@ -116,18 +159,19 @@ def main():
 
     iter_num = 0
     if args.resume:
-        print(f"Resuming from {args.resume}...")
+        logger.info(f"Resuming from {args.resume}...")
         iter_num = load_checkpoint(args.resume, model, optimizer)
 
     # 6. Training Loop
     t0 = time.time()
+    tokens_processed = 0
 
     while iter_num < args.max_iters:
 
         # --- Validation & Checkpointing ---
         if iter_num % args.eval_interval == 0:
             val_loss = estimate_loss(model, val_data, args.batch_size, args.context_length, device, args.eval_iters)
-            print(f"Step {iter_num}: val loss {val_loss:.4f}")
+            logger.info(f"Step {iter_num}: val loss {val_loss:.4f}")
             
             if args.wandb:
                 wandb.log({"val/loss": val_loss, "step": iter_num})
@@ -166,23 +210,28 @@ def main():
         # --- Logging ---
         t1 = time.time()
         dt = t1 - t0
+        tokens_processed += args.batch_size * args.context_length
         t0 = t1
         
         if iter_num % args.log_interval == 0:
             loss_f = loss.item()
-            print(f"Step {iter_num}: train loss {loss_f:.4f} | lr {lr:.4e} | time {dt*1000:.2f}ms")
+
+            logger.info(f"Step {iter_num}: train loss {loss_f:.4f} | lr {lr:.4e} | time {dt:.2f}s | tokens {tokens_processed}")
+
             if args.wandb:
                 wandb.log({
                     "train/loss": loss_f,
                     "train/lr": lr,
-                    "step": iter_num
+                    "train/step": iter_num,
+                    "train/time_seconds": dt, # Wallclock time
+                    "train/tokens": tokens_processed,   # Throughput metric
                 })
         
         iter_num += 1
 
     # Save final checkpoint
     save_checkpoint(model, optimizer, iter_num, os.path.join(args.out_dir, "ckpt_final.pt"))
-    print("Training complete!")
+    logger.info("Training complete!")
 
 
 if __name__ == "__main__":
