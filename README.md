@@ -1,3 +1,5 @@
+# further dev into - https://github.com/SDcodehub/LM-training.git
+
 # LLM training
 
 ## Setup
